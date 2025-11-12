@@ -22,9 +22,10 @@ def call_zhipu_api(messages, model="glm-4-flash"):
     else:
         raise Exception(f"API调用失败: {response.status_code}, {response.text}")
 
+role_system ="你是一个表演家,所有的回答都要很简洁,不超过5个字"
 # 使用示例
 messages = [
-    {"role": "user", "content": "你今天过的怎么样"}
+    {"role": "user", "content": "请介绍一下你自己"}
 ]
 
 result = call_zhipu_api(messages)
