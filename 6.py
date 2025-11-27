@@ -369,7 +369,7 @@ st.set_page_config(
 if "conversation_history" not in st.session_state:
     st.session_state.conversation_history = []
 if "selected_role" not in st.session_state:
-    st.session_state.selected_role = "Oct.yi"
+    st.session_state.selected_role = "Oct.yl"
 if "initialized" not in st.session_state:
     st.session_state.initialized = False
 
