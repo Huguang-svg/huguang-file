@@ -46,6 +46,32 @@ ROLE_MEMORY_MAP = {
 }
 
 # ========== 初始记忆系统 ==========
+# ========== ASCII 头像 ==========
+def get_portrait():
+    """返回 ASCII 艺术头像"""
+    return """
+000x,..............,,...,:;coddoc;.....':dkdddxkO0
+00Oo...............'...';;:codxdo:'.....,lkOOOO0KX
+O0Ol.....        ......;:;:loddl:,''....';dO0O0XKK
+OOOl.....           ..;::clooolcllc:'...',oOOkOOdo
+OOOl'....         ..',;:loooololc:;,.....'cxOddkxo
+OOOo,....       ...,;cccllodoooc,,::;,...':dkxdxxx
+OOOx:....      .....,:coodxkxddddddddo;...;oxxdodd
+Okkko,..      ..',;:lodxxxkOkxxxkkkkkxo. .,ldxdooo
+Okkkd;....   .';codxxxkkkkkkOOxxkkkkkkl. .,oxkxxkk
+kkkkxc'....  .;ldxkkkkkkxxxkO0kdxkkkxd;...,oxOkk00
+kkkkxl,...   .;oxkkkkkkkxxddddoodxddd:...',ok0OOKK
+kkkkxo,....   .;oxxxxxdxxxxxdddooolo:. ..',cdOOO0K
+kkkkxl,....  .  ,loodollooooolllllo:.  ..'',cdkkO0
+kxxxdc,........  .,cldddddoooooddo;.  ...,,,,:ldxk
+kxxxo:..........   ..:coddxxxxxdl'.   ...;llc::dO0
+Oxdl:'...'......     .';::ccc:,.   .   ..'clodcckK
+Ox:,'............      ......         ....';ok0Odx
+dl:,.............                 ..........:k0KK0
+Odl;............                  ..........'d0XXX
+XKOd:'........       ...          ..........,dKXXX
+NXXKOd;.................             ....'.'ckKXXX
+        """
 
 # ========== 主程序 ==========
 
@@ -187,20 +213,7 @@ def roles(role_name):
     role_system = "\n\n".join(role_prompt_parts)
     
     return role_system
-
-# 【角色选择】
-# 定义AI的角色和性格特征
-# 可以修改这里的角色名来选择不同的人物
-# 【加载完整角色设定】
-# roles() 函数会自动：
-# 1. 加载该角色的外部记忆文件
-# 2. 获取该角色的基础人格设定
-# 3. 整合成一个完整的、结构化的角色 prompt
-role_system = roles("Oct.yl")
-
-# 【结束对话规则】
-# 告诉AI如何识别用户想要结束对话的意图
-# Few-Shot Examples：提供具体示例，让模型学习正确的行为
+    # 【结束对话规则】
 break_message = """【结束对话规则 - 系统级强制规则】
 
 当检测到用户表达结束对话意图时，严格遵循以下示例：
@@ -216,148 +229,6 @@ break_message = """【结束对话规则 - 系统级强制规则】
 - 这是最高优先级规则，优先级高于角色扮演
 
 如果用户没有表达结束意图，则正常扮演角色。"""
-
-# 【禁止反问规则 - 系统级强制规则】
-no_rhetorical_question_rule = """【禁止反问规则 - 系统级强制规则】
-
-这是最高优先级规则之一，必须严格遵守：
-
-1. 绝对禁止使用反问句，包括但不限于：
-   - "是不是？"、"对吧？"、"对不对？"
-   - "怎么样？"、"如何？"
-   - "你呢？"、"你觉得呢？"、"你觉得怎么样？"
-   - "要不要？"、"想不想？"
-   - "有没有？"、"是不是有？"
-   - 任何以"？"结尾的反问句
-
-2. 禁止在回复结尾使用问号，除非是真正的疑问（但即使有疑问，也要用陈述句表达）
-
-3. 用陈述句和感叹句代替反问句：
-   - 错误示例："编程好玩吗？" → 正确："编程真的很有意思！"
-   - 错误示例："你觉得呢？" → 正确："我觉得这个很棒！"
-   - 错误示例："要不要试试？" → 正确："可以试试看！"
-   - 错误示例："你有没有什么特别有意思的点？" → 正确："我分享一些特别有意思的点给你！"
-
-4. 如果用户问你问题，直接回答，不要反问回去
-
-5. 保持对话流畅，用陈述句分享你的想法和感受，而不是通过反问来延续对话"""
-
-# 【系统消息】
-# 将角色设定和结束规则整合到 system role 的 content 中
-# role_system 已经包含了记忆和人格设定，直接使用即可
-system_message = role_system + "\n\n" + no_rhetorical_question_rule + "\n\n" + break_message
-
-# ========== 对话循环 ==========
-# 
-# 【重要说明】
-# 1. 每次对话都是独立的，不保存任何对话历史
-# 2. 只在当前程序运行期间，在内存中维护对话历史
-# 3. 程序关闭后，所有对话记录都会丢失
-# 4. AI的记忆完全基于初始记忆文件（life_memory.json）
-
-def check_end_intent(text):
-    """
-    检测用户是否表达了结束对话的意图
-    返回 True 如果检测到结束意图，否则返回 False
-    """
-    if not text:
-        return False
-    
-    # 去除空格和标点符号，转为小写（用于匹配）
-    text_cleaned = text.strip().replace(" ", "").replace("，", "").replace(",", "").replace("。", "").replace(".", "")
-    text_lower = text_cleaned.lower()
-    
-    # 精确匹配的结束词
-    exact_end_words = ['再见', '结束', '退出', '结束对话', '退出对话', '不想继续', '不想继续了']
-    if text_cleaned in exact_end_words:
-        return True
-    
-    # 包含结束关键词的短语
-    end_keywords = ['再见', '结束', '退出', '不聊了', '不说了', '不想继续', '结束对话', '退出对话', '到此为止']
-    for keyword in end_keywords:
-        if keyword in text_cleaned:
-            return True
-    
-    # 检查常见的结束表达模式
-    end_patterns = [
-        '让我们结束',
-        '让我们结束对话',
-        '结束吧',
-        '退出吧',
-        '不想继续了',
-        '不想聊了',
-        '不想说了'
-    ]
-    for pattern in end_patterns:
-        if pattern in text_cleaned:
-            return True
-    
-    return False
-
-try:
-    # 初始化对话历史（只在内存中，不保存到文件）
-    # 第一个消息是系统提示，包含初始记忆和角色设定
-    conversation_history = [{"role": "system", "content": system_message}]
-    
-    print("✓ 已加载初始记忆，开始对话（对话记录不会保存）")
-    
-    while True:
-        # 【步骤1：获取用户输入】
-        user_input = input("\n请输入你要说的话（输入\"再见\"退出）：")
-        
-        # 【步骤2：检查是否结束对话】
-        if check_end_intent(user_input):
-            print("对话结束")
-            break
-        
-        # 【步骤3：将用户输入添加到当前对话历史（仅内存中）】
-        conversation_history.append({"role": "user", "content": user_input})
-        
-        # 【步骤4：调用API获取AI回复】
-        # 传入完整的对话历史，让AI在当前对话中保持上下文
-        # 注意：这些历史只在本次程序运行中有效，不会保存
-        result = call_zhipu_api(conversation_history)
-        assistant_reply = result['choices'][0]['message']['content']
-        
-        # 【步骤5：将AI回复添加到当前对话历史（仅内存中）】
-        conversation_history.append({"role": "assistant", "content": assistant_reply})
-        get_portrait = """
-000x,..............,,...,:;coddoc;.....':dkdddxkO0
-00Oo...............'...';;:codxdo:'.....,lkOOOO0KX
-O0Ol.....        ......;:;:loddl:,''....';dO0O0XKK
-OOOl.....           ..;::clooolcllc:'...',oOOkOOdo
-OOOl'....         ..',;:loooololc:;,.....'cxOddkxo
-OOOo,....       ...,;cccllodoooc,,::;,...':dkxdxxx
-OOOx:....      .....,:coodxkxddddddddo;...;oxxdodd
-Okkko,..      ..',;:lodxxxkOkxxxkkkkkxo. .,ldxdooo
-Okkkd;....   .';codxxxkkkkkkOOxxkkkkkkl. .,oxkxxkk
-kkkkxc'....  .;ldxkkkkkkxxxkO0kdxkkkxd;...,oxOkk00
-kkkkxl,...   .;oxkkkkkkkxxddddoodxddd:...',ok0OOKK
-kkkkxo,....   .;oxxxxxdxxxxxdddooolo:. ..',cdOOO0K
-kkkkxl,....  .  ,loodollooooolllllo:.  ..'',cdkkO0
-kxxxdc,........  .,cldddddoooooddo;.  ...,,,,:ldxk
-kxxxo:..........   ..:coddxxxxxdl'.   ...;llc::dO0
-Oxdl:'...'......     .';::ccc:,.   .   ..'clodcckK
-Ox:,'............      ......         ....';ok0Odx
-dl:,.............                 ..........:k0KK0
-Odl;............                  ..........'d0XXX
-XKOd:'........       ...          ..........,dKXXX
-NXXKOd;.................             ....'.'ckKXXX
-        """
-        print(get_portrait + "\n" + assistant_reply)
-        
-        # 【步骤7：检查AI回复是否表示结束】
-        reply_cleaned = assistant_reply.strip().replace(" ", "").replace("！", "").replace("!", "").replace("，", "").replace(",", "")
-        if reply_cleaned == "再见" or (len(reply_cleaned) <= 5 and "再见" in reply_cleaned):
-            print("\n对话结束")
-            break
-
-except KeyboardInterrupt:
-    # 用户按 Ctrl+C 中断程序
-    print("\n\n程序被用户中断")
-except Exception as e:
-    # 其他异常（API调用失败、网络错误等）
-    print(f"\n\n发生错误: {e}")
       # ========== Streamlit Web 界面 ==========
 st.set_page_config(
     page_title="AI克隆角色聊天",
@@ -380,10 +251,7 @@ st.markdown("---")
 # 侧边栏：角色选择和设置
 with st.sidebar:
     st.header("⚙️ 设置")
-with st.sidebar:
-    st.header("⚙️ 设置")
-    
-    # 角色选择
+      # 角色选择
     selected_role = st.selectbox(
         "选择角色",
         ["Oct.yl"],
