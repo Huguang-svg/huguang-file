@@ -1,105 +1,62 @@
-import streamlit as st
-
-from chat import chat_once
+from memory import load_memory, save_memory
+from roles import get_role_prompt, get_system_message
 from logic import should_exit_by_user, should_exit_by_ai
-from roles import get_role_prompt, get_break_rules
+from chat import chat_once
 
-
-ROLE_OPTIONS = ["Oct.yl"]
-
-
-def reset_conversation(role_name: str):
-    """
-    基于当前角色重新创建系统提示词和对话历史
-    """
-    role_prompt = get_role_prompt(role_name)
-    system_message = role_prompt + "\n\n" + get_break_rules()
-    st.session_state.conversation_history = [{"role": "system", "content": system_message}]
-    st.session_state.role_prompt = role_prompt
-    st.session_state.initialized = True
-
-
-def initialize_state():
-    if "conversation_history" not in st.session_state:
-        st.session_state.conversation_history = []
-    if "selected_role" not in st.session_state:
-        st.session_state.selected_role = ROLE_OPTIONS[0]
-    if "role_prompt" not in st.session_state:
-        st.session_state.role_prompt = ""
-    if "initialized" not in st.session_state:
-        st.session_state.initialized = False
-
-    if not st.session_state.initialized:
-        reset_conversation(st.session_state.selected_role)
-
-
-def render_sidebar():
-    with st.sidebar:
-        st.header("⚙️ 设置")
-        selected_role = st.selectbox("选择角色", ROLE_OPTIONS, index=ROLE_OPTIONS.index(st.session_state.selected_role))
-
-        if selected_role != st.session_state.selected_role:
-            st.session_state.selected_role = selected_role
-            reset_conversation(selected_role)
-            st.rerun()
-
-        if st.button("🔄 清空对话"):
-            reset_conversation(st.session_state.selected_role)
-            st.rerun()
-
-        st.markdown("---")
-        st.markdown("### 📝 说明")
-        st.info("- 选择角色后开始对话\n- 对话记录不会保存\n- AI的记忆基于初始记忆文件")
-
-
-def render_history():
-    st.subheader(f"💬 与 {st.session_state.selected_role} 的对话")
-    st.code( language=None)
-    st.markdown("---")
-
-    for msg in st.session_state.conversation_history[1:]:
-        with st.chat_message(msg["role"]):
-            st.write(msg["content"])
-
-
-def handle_user_input(user_input: str):
-    if should_exit_by_user(user_input):
-        st.info("对话已结束")
-        st.stop()
-
-    with st.chat_message("user"):
-        st.write(user_input)
-
-    try:
-        reply = chat_once(st.session_state.conversation_history, user_input, st.session_state.role_prompt)
-    except Exception as error:
-        # chat_once已经把用户消息加入历史，失败时移除保持一致
-        st.session_state.conversation_history.pop()
-        st.error(f"发生错误: {error}")
-        return
-
-    with st.chat_message("assistant"):
-        st.write(reply)
-
-    if should_exit_by_ai(reply):
-        st.info("对话已结束")
-        st.stop()
-
+# 全局配置
+ROLE_NAME = "Oct.yl"
 
 def main():
-    st.set_page_config(page_title="AI克隆角色聊天", page_icon="🪼", layout="wide")
-    initialize_state()
-
-    st.title("🪼 AI克隆角色聊天")
-    st.markdown("---")
-
-    render_sidebar()
-    render_history()
-
-    user_input = st.chat_input("输入你的消息...")
-    if user_input:
-        handle_user_input(user_input)
-
+    """主程序入口：初始化对话历史，运行主循环，保存记忆"""
+    # 初始化角色设定
+    role_system = get_role_prompt(ROLE_NAME)
+    system_message = get_system_message(ROLE_NAME)
+    
+    # 加载历史记忆
+    conversation_history = load_memory()
+    
+    # 如果记忆为空，初始化对话历史
+    if not conversation_history:
+        conversation_history = [
+            {"role": "system", "content": system_message}
+        ]
+        print("✓ 初始化新对话")
+    
+    try:
+        while True:
+            # 获取用户输入
+            user_input = input("\n请输入你要说的话（输入\"再见\"退出）：")
+            
+            # 检查是否结束对话
+            if should_exit_by_user(user_input):
+                print("对话结束，记忆已保存")
+                break
+            
+            # 进行一次对话交互
+            assistant_reply = chat_once(conversation_history, user_input, ROLE_NAME)
+            
+            # 显示AI回复
+            print(assistant_reply)
+            
+            # 保存记忆到文件
+            save_memory(conversation_history, role_system)
+            
+            # 检查AI回复是否表示结束
+            if should_exit_by_ai(assistant_reply):
+                print("\n对话结束，记忆已保存")
+                break
+    
+    except KeyboardInterrupt:
+        # 用户按 Ctrl+C 中断程序
+        print("\n\n程序被用户中断，正在保存记忆...")
+        save_memory(conversation_history, role_system)
+        print("✓ 记忆已保存")
+    except Exception as e:
+        # 其他异常（API调用失败、网络错误等）
+        print(f"\n\n发生错误: {e}")
+        print("正在保存记忆...")
+        save_memory(conversation_history, role_system)
+        print("✓ 记忆已保存")
 
 if __name__ == "__main__":
     main()

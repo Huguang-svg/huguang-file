@@ -1,46 +1,38 @@
 import json
 import os
+from datetime import datetime
 
-MEMORY_FOLDER = "4.2_memory_clonebot"
+# 记忆文件的路径和文件名
+MEMORY_FILE = "Oct.yl_memory.json"
 
-ROLE_MEMORY_MAP = {
-    "Oct.yl": "Oct.yl_memory.json",
-}
+def load_memory():
+    """从JSON文件加载对话历史，返回对话历史列表"""
+    if os.path.exists(MEMORY_FILE):
+        try:
+            with open(MEMORY_FILE, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                history = data.get('history', [])
+                print(f"✓ 已加载 {len(history)} 条历史对话")
+                return history
+        except Exception as e:
+            print(f"⚠ 加载记忆失败: {e}，将使用新的对话历史")
+            return []
+    else:
+        print("✓ 未找到记忆文件，开始新对话")
+        return []
 
-
-def load_memory(role_name: str) -> str:
-    """
-    加载指定角色的外部记忆内容
-
-    参数：
-        role_name: 角色名称
-
-    返回：
-        记忆内容字符串，若无内容则返回空字符串
-    """
-    memory_file = ROLE_MEMORY_MAP.get(role_name)
-    if not memory_file:
-        return ""
-
-    memory_path = os.path.join(MEMORY_FOLDER, memory_file)
-    if not os.path.exists(memory_path):
-        return ""
-
+def save_memory(conversation_history, role_system):
+    """保存对话历史到JSON文件"""
     try:
-        with open(memory_path, "r", encoding="utf-8") as file:
-            data = json.load(file)
-    except Exception:
-        return ""
-
-    if isinstance(data, list):
-        contents = [
-            item.get("content", "")
-            for item in data
-            if isinstance(item, dict) and item.get("content")
-        ]
-        return "\n".join(filter(None, contents))
-
-    if isinstance(data, dict):
-        return data.get("content", str(data))
-
-    return str(data)
+        data = {
+            "role_system": role_system,
+            "history": conversation_history,
+            "last_update": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        
+        with open(MEMORY_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        
+        print(f"✓ 已保存 {len(conversation_history)} 条对话到记忆文件")
+    except Exception as e:
+        print(f"⚠ 保存记忆失败: {e}")

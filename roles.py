@@ -1,18 +1,5 @@
-from memory import load_memory
-
-
 def get_role_prompt(role_name):
-    """
-    根据角色名获取角色设定
-    
-    参数：
-        role_name: Oct.yl
-    
-    返回：
-        角色的系统提示词字符串
-    """
-    memory_content = load_memory(role_name)
-
+    """根据角色名获取角色设定"""
     role_dict = {
         "Oct.yl": """
 你的每次回答都以陈述句结尾。禁止使用反问句（如"是不是？"、"对吧？"、"怎么样？"、"你呢？"等）
@@ -86,29 +73,12 @@ def get_role_prompt(role_name):
   - 错误："要不要试试？" → 正确："可以试试看！"
         """
     }
+    return role_dict.get(role_name, "你是一个普通的人没有特殊角色")
 
-    personality = role_dict.get(role_name, "你是一个普通的人，没有特殊角色")
-
-    role_prompt_parts = []
-
-    if memory_content and memory_content.strip():
-        role_prompt_parts.append(
-            "【你的说话风格示例】\n以下是你说过的话，你必须模仿这种说话风格和语气：\n\n"
-            f"{memory_content}\n\n在对话中，你要自然地使用类似的表达方式和语气。"
-        )
-
-    role_prompt_parts.append(f"【角色设定】\n{personality}")
-
-    return "\n\n".join(role_prompt_parts)
-
-def get_break_rules():
-    """
-    获取结束对话的规则说明
-    
-    返回：
-        结束对话规则的字符串
-    """
-    return """【结束对话规则 - 系统级强制规则】
+def get_break_rules(role_name):
+    """获取结束对话的规则说明"""
+    role_prompt = get_role_prompt(role_name)
+    break_message = f"""【结束对话规则 - 系统级强制规则】
 
 当检测到用户表达结束对话意图时，严格遵循以下示例：
 
@@ -122,4 +92,11 @@ def get_break_rules():
 - 禁止任何额外内容（标点、表情、祝福语等）
 - 这是最高优先级规则，优先级高于角色扮演
 
-如果用户没有表达结束意图，则正常扮演角色。"""
+如果用户没有表达结束意图，则正常扮演{role_prompt}角色。"""
+    return break_message
+
+def get_system_message(role_name):
+    """获取完整的系统消息（角色设定 + 结束规则）"""
+    role_system = get_role_prompt(role_name)
+    break_message = get_break_rules(role_name)
+    return role_system + "\n\n" + break_message
